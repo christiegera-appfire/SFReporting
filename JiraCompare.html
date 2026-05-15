@@ -1,0 +1,358 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Visualize the Same Data in Jira and Salesforce</title>
+<!-- Style: custom -->
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --ink: #1a1a2e;
+  --ink-mid: #4a4a5e;
+  --ink-light: #8a8a9e;
+  --cream: #FAF9F6;
+  --warm: #F5F0EB;
+  --accent: #D4622B;
+  --accent-light: #F2E6DC;
+  --rule: #E0DCD6;
+  --card-bg: #FFFFFF;
+  --sf-blue: #0176D3;
+  --jira-blue: #2684FF;
+  --font-display: Georgia, 'Times New Roman', serif;
+  --font-body: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  --font-mono: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+  --max-w: 860px;
+}
+
+body { font-family: var(--font-body); background: var(--cream); color: var(--ink); font-size: 15px; line-height: 1.6; -webkit-font-smoothing: antialiased; }
+
+.masthead { background: var(--ink); color: var(--cream); padding: 56px 32px 48px; text-align: center; }
+.masthead-label { display: inline-block; font-size: 10.5px; font-weight: 600; letter-spacing: 2.5px; text-transform: uppercase; color: var(--accent); border: 1px solid rgba(212,98,43,0.4); padding: 4px 14px; border-radius: 2px; margin-bottom: 24px; }
+.masthead h1 { font-family: var(--font-display); font-size: clamp(28px, 4.5vw, 42px); font-weight: 400; line-height: 1.2; letter-spacing: -0.5px; margin-bottom: 16px; }
+.masthead h1 em { font-style: italic; color: var(--accent); }
+.masthead-sub { font-size: 15px; color: rgba(250,249,246,0.65); max-width: 580px; margin: 0 auto; line-height: 1.5; }
+
+.content { max-width: var(--max-w); margin: 0 auto; padding: 40px 24px 100px; }
+
+.section { margin-bottom: 48px; }
+.section-num { font-family: var(--font-display); font-size: 11px; color: var(--accent); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 6px; }
+.section h2 { font-family: var(--font-display); font-size: 22px; font-weight: 400; color: var(--ink); margin-bottom: 16px; line-height: 1.3; }
+.section p { color: var(--ink-mid); margin-bottom: 12px; }
+.section p strong { color: var(--ink); }
+
+/* ── Two-platform comparison ── */
+.platform-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 20px 0; }
+.platform-card { background: var(--card-bg); border: 1px solid var(--rule); border-radius: 6px; overflow: hidden; transition: border-color 0.2s; }
+.platform-card:hover { border-color: var(--accent); }
+.platform-header { padding: 14px 18px 10px; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid var(--rule); }
+.platform-logo { width: 28px; height: 28px; border-radius: 6px; display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 700; font-size: 13px; flex-shrink: 0; }
+.platform-logo.sf { background: var(--sf-blue); }
+.platform-logo.jira { background: var(--jira-blue); }
+.platform-name { font-size: 13px; font-weight: 600; color: var(--ink); }
+.platform-sub { font-size: 11px; color: var(--ink-light); }
+.platform-body { padding: 14px 18px; }
+.platform-body ul { list-style: none; padding: 0; }
+.platform-body li { font-size: 13px; color: var(--ink-mid); padding: 4px 0; display: flex; align-items: flex-start; gap: 8px; }
+.platform-body li::before { content: ''; width: 5px; height: 5px; border-radius: 50%; background: var(--accent); flex-shrink: 0; margin-top: 7px; }
+
+/* ── Flow diagram ── */
+.flow { display: grid; grid-template-columns: 1fr auto 1fr auto 1fr; gap: 0; align-items: stretch; margin: 24px 0; }
+.flow-stage { background: var(--card-bg); border: 1px solid var(--rule); border-radius: 6px; padding: 16px; text-align: center; }
+.flow-stage-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 4px; }
+.flow-stage-title.sf { color: var(--sf-blue); }
+.flow-stage-title.conn { color: var(--accent); }
+.flow-stage-title.jira { color: var(--jira-blue); }
+.flow-stage p { font-size: 12px; color: var(--ink-mid); margin: 0; }
+.flow-arrow { display: flex; align-items: center; justify-content: center; color: var(--accent); font-size: 20px; padding: 0 6px; font-weight: 600; }
+
+/* ── Comparison table ── */
+.ref-table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 16px 0; background: var(--card-bg); border: 1px solid var(--rule); border-radius: 6px; overflow: hidden; }
+.ref-table thead th { background: var(--warm); text-align: left; padding: 10px 14px; font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; color: var(--ink-mid); border-bottom: 1px solid var(--rule); }
+.ref-table tbody td { padding: 8px 14px; border-bottom: 1px solid #f0ede8; color: var(--ink-mid); vertical-align: top; }
+.ref-table tbody tr:last-child td { border-bottom: none; }
+.ref-table code { font-family: var(--font-mono); font-size: 11.5px; background: var(--warm); padding: 1px 5px; border-radius: 3px; color: var(--ink); }
+.th-sf { color: var(--sf-blue); }
+.th-jira { color: var(--jira-blue); }
+
+.callout { background: var(--accent-light); border-left: 3px solid var(--accent); padding: 14px 18px; border-radius: 0 6px 6px 0; margin: 16px 0; }
+.callout p { font-size: 13px; color: var(--ink); margin: 0; }
+
+.pullquote { border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule); padding: 28px 0; margin: 40px 0; text-align: center; }
+.pullquote p { font-family: var(--font-display); font-size: 19px; font-style: italic; color: var(--ink); max-width: 620px; margin: 0 auto; line-height: 1.5; }
+
+.cards { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin: 16px 0; }
+.card { background: var(--card-bg); border: 1px solid var(--rule); border-radius: 6px; padding: 18px 20px; transition: border-color 0.2s; }
+.card:hover { border-color: var(--accent); }
+.card-badge { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; padding: 2px 8px; border-radius: 2px; display: inline-block; margin-bottom: 8px; }
+.badge-sf { color: var(--sf-blue); background: #E3F2FD; }
+.badge-jira { color: var(--jira-blue); background: #DEEBFF; }
+.badge-both { color: var(--accent); background: var(--accent-light); }
+.card h3 { font-family: var(--font-display); font-size: 16px; font-weight: 400; margin-bottom: 6px; }
+.card p { font-size: 13px; color: var(--ink-mid); line-height: 1.5; margin: 0; }
+
+.steps { counter-reset: step; }
+.step { display: grid; grid-template-columns: 48px 1fr; gap: 16px; margin-bottom: 20px; align-items: start; }
+.step-num { width: 40px; height: 40px; border-radius: 50%; background: var(--ink); color: var(--cream); font-family: var(--font-display); font-size: 16px; display: flex; align-items: center; justify-content: center; margin-top: 2px; }
+.step-content h3 { font-size: 15px; font-weight: 600; margin-bottom: 4px; }
+.step-content p { font-size: 13.5px; color: var(--ink-mid); margin: 0 0 4px; }
+.step-time { font-size: 11px; color: var(--accent); font-weight: 600; }
+
+.divider { border: none; border-top: 1px solid var(--rule); margin: 48px 0; }
+
+.footer { text-align: center; padding: 24px; font-size: 11px; color: var(--ink-light); border-top: 1px solid var(--rule); max-width: var(--max-w); margin: 0 auto; }
+
+@media (max-width: 700px) {
+  .platform-grid, .cards { grid-template-columns: 1fr; }
+  .flow { grid-template-columns: 1fr; gap: 8px; }
+  .flow-arrow { transform: rotate(90deg); padding: 4px 0; }
+}
+</style>
+</head>
+<body>
+
+<div class="masthead">
+  <div class="masthead-label">Connector for Salesforce &amp; Jira &bull; Use Case Guide</div>
+  <h1>One Source of Truth,<br><em>Two Dashboards</em></h1>
+  <p class="masthead-sub">The Connector syncs data bidirectionally between Salesforce and Jira. Operations managers and engineers see the same accountability metrics — each in the tool they already live in.</p>
+</div>
+
+<div class="content">
+
+  <!-- ═══ THE CONCEPT ═══ -->
+  <div class="section">
+    <div class="section-num">01</div>
+    <h2>The Dual-View Problem</h2>
+    <p><strong>Operations teams live in Salesforce. Engineering lives in Jira.</strong> When a support case is tied to an engineering ticket, neither side has full visibility. Ops can't see whether engineering is working the ticket. Engineering can't see the revenue impact of letting a ticket go stale.</p>
+    <p>The Connector solves this by syncing fields in both directions. The same Status, Priority, Assignee, and Ticket Age data is visible and reportable in both platforms — without anyone switching tools.</p>
+
+    <div class="flow">
+      <div class="flow-stage">
+        <div class="flow-stage-title sf">Salesforce</div>
+        <p>Cases, Opportunities, Account revenue</p>
+      </div>
+      <div class="flow-arrow">&harr;</div>
+      <div class="flow-stage">
+        <div class="flow-stage-title conn">Connector</div>
+        <p>Bidirectional sync on every update</p>
+      </div>
+      <div class="flow-arrow">&harr;</div>
+      <div class="flow-stage">
+        <div class="flow-stage-title jira">Jira</div>
+        <p>Issues, Status, Assignee, Revenue field</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ SIDE BY SIDE ═══ -->
+  <div class="section">
+    <div class="section-num">02</div>
+    <h2>Same Data, Two Dashboards</h2>
+    <p>Both dashboards pull from the same underlying data. A status change in Jira updates the Salesforce dashboard, and vice versa.</p>
+
+    <div class="platform-grid">
+      <div class="platform-card">
+        <div class="platform-header">
+          <div class="platform-logo sf">SF</div>
+          <div>
+            <div class="platform-name">Salesforce Dashboard</div>
+            <div class="platform-sub">IT Responsiveness Tracker</div>
+          </div>
+        </div>
+        <div class="platform-body">
+          <ul>
+            <li>4 KPI metrics (total, blocked, resolved, stale)</li>
+            <li>Donut chart — tickets by Jira Status</li>
+            <li>Horizontal bar — aging by Jira Assignee</li>
+            <li>Table — stale tickets (no update in 7+ days)</li>
+            <li>Full aging table sorted by Jira Ticket Age</li>
+          </ul>
+        </div>
+      </div>
+      <div class="platform-card">
+        <div class="platform-header">
+          <div class="platform-logo jira">J</div>
+          <div>
+            <div class="platform-name">Jira Dashboard</div>
+            <div class="platform-sub">IT Responsiveness Tracker</div>
+          </div>
+        </div>
+        <div class="platform-body">
+          <ul>
+            <li>Pie chart — tickets by Status</li>
+            <li>2D matrix — assignee workload by status</li>
+            <li>Revenue at Risk table — deal value per ticket</li>
+            <li>Table — stale tickets (no update in 7+ days)</li>
+            <li>Created vs. Resolved trend line</li>
+            <li>Full aging table sorted by Created date</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="callout">
+      <p><strong>The Jira dashboard adds one thing Salesforce can't:</strong> the Revenue at Risk column. By syncing Opportunity Amount from Salesforce into a Jira custom field, engineers see the dollar value of every stale ticket. A blocked ticket tied to a $3.1M deal gets attention faster than one with no business context.</p>
+    </div>
+  </div>
+
+  <div class="pullquote">
+    <p>Operations sees IT accountability in Salesforce. Engineering sees revenue impact in Jira. Both sides are looking at the same data, updated in real time.</p>
+  </div>
+
+  <!-- ═══ FIELD MAPPING ═══ -->
+  <div class="section">
+    <div class="section-num">03</div>
+    <h2>What Syncs Where</h2>
+    <p>The Connector maps these fields bidirectionally. Each field is reportable in both platforms using native tools (Salesforce Report Builder, Jira JQL and dashboard gadgets).</p>
+
+    <table class="ref-table">
+      <thead>
+        <tr><th>Data Point</th><th class="th-sf">Salesforce Field</th><th>Sync</th><th class="th-jira">Jira Field</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Ticket Status</td><td><code>Jira_Status__c</code></td><td>&harr;</td><td>Status</td></tr>
+        <tr><td>Priority</td><td><code>Jira_Priority__c</code></td><td>&harr;</td><td>Priority</td></tr>
+        <tr><td>Summary</td><td><code>Jira_Summary__c</code></td><td>&harr;</td><td>Summary</td></tr>
+        <tr><td>Assignee</td><td><code>Jira_Assignee__c</code></td><td>&rarr;</td><td>Assignee</td></tr>
+        <tr><td>Last Updated</td><td><code>Jira_Last_Updated__c</code></td><td>&rarr;</td><td>Updated (native)</td></tr>
+        <tr><td>Created Date</td><td><code>Jira_Created_Date__c</code></td><td>&rarr;</td><td>Created (native)</td></tr>
+        <tr><td>Target End Date</td><td><code>Jira_Target_End_Date__c</code></td><td>&harr;</td><td>Due Date</td></tr>
+        <tr><td>Ticket Age</td><td><code>Jira_Ticket_Age__c</code> (formula)</td><td>—</td><td>Calculated via JQL</td></tr>
+        <tr><td>Deal Value</td><td><code>Deal_Value__c</code></td><td>&larr;</td><td><code>SF Opportunity Amount</code></td></tr>
+      </tbody>
+    </table>
+
+    <p>The Deal Value field flows from Salesforce <em>into</em> Jira — the reverse of every other field. This is what makes the Revenue at Risk view possible on the engineering side.</p>
+  </div>
+
+  <hr class="divider">
+
+  <!-- ═══ REPORT COMPARISON ═══ -->
+  <div class="section">
+    <div class="section-num">04</div>
+    <h2>Report-by-Report Comparison</h2>
+    <p>Each accountability metric exists in both platforms. Here's how the same insight is built on each side.</p>
+
+    <table class="ref-table">
+      <thead>
+        <tr><th>Metric</th><th class="th-sf">Salesforce Report</th><th class="th-jira">Jira Gadget</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Status Distribution</strong></td>
+          <td>Summary report grouped by Jira Status → Donut chart widget</td>
+          <td>Pie Chart gadget, Statistic Type: Status</td>
+        </tr>
+        <tr>
+          <td><strong>Assignee Workload</strong></td>
+          <td>Summary report grouped by Jira Assignee → Horizontal bar widget</td>
+          <td>Two Dimensional Filter Statistics, X: Assignee, Y: Status</td>
+        </tr>
+        <tr>
+          <td><strong>Stale Tickets</strong></td>
+          <td>Cases where Jira Last Updated older than 7 days → Table widget</td>
+          <td>Filter Results gadget with <code>updated &lt;= -7d</code> JQL filter</td>
+        </tr>
+        <tr>
+          <td><strong>Ticket Aging</strong></td>
+          <td>Cases sorted by Jira Ticket Age descending → Table widget</td>
+          <td>Filter Results gadget, <code>ORDER BY created ASC</code></td>
+        </tr>
+        <tr>
+          <td><strong>Revenue at Risk</strong></td>
+          <td>Not available natively (data lives in Opportunity/Account)</td>
+          <td>Filter Results gadget with SF Opportunity Amount column, sorted DESC</td>
+        </tr>
+        <tr>
+          <td><strong>Trend</strong></td>
+          <td>Salesforce report subscription (scheduled email)</td>
+          <td>Created vs. Resolved gadget, weekly, 30 days</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ═══ THE PITCH ═══ -->
+  <div class="section">
+    <div class="section-num">05</div>
+    <h2>Why This Matters for General Motors</h2>
+
+    <div class="cards">
+      <div class="card">
+        <span class="card-badge badge-sf">Salesforce Side</span>
+        <h3>Sarah's View (Ops)</h3>
+        <p>Sarah and the Dealer Data Share Ops team see ticket status, aging, and stale ticket alerts in the tool they use every day. They never open Jira. They build reports, schedule email delivery, and hold IT accountable with native Salesforce dashboards.</p>
+      </div>
+      <div class="card">
+        <span class="card-badge badge-jira">Jira Side</span>
+        <h3>Engineering's View</h3>
+        <p>Engineers see the same tickets with one critical addition: the dollar value at risk. A blocked VIN decoder ticket attached to a $3.1M Opportunity gets prioritized differently than one with no business context. Revenue at Risk changes the conversation.</p>
+      </div>
+      <div class="card">
+        <span class="card-badge badge-both">For Chris (Budget)</span>
+        <h3>The Efficiency Dividend</h3>
+        <p>The Connector eliminates the manual check-in cycle between ops and engineering. No tab-switching, no status meetings to ask "where's my ticket." Both sides see live data. That's the administrative tax eliminated — the ROI story Chris needs to approve the 500-seat purchase.</p>
+      </div>
+      <div class="card">
+        <span class="card-badge badge-both">Not an iFrame</span>
+        <h3>Native Data, Both Ways</h3>
+        <p>Data lives in native fields on both platforms. Salesforce custom fields are sortable, filterable, and work with CRMA. Jira custom fields work with JQL, dashboards, and automation rules. No embedded views, no external tools, no training gap.</p>
+      </div>
+    </div>
+  </div>
+
+  <hr class="divider">
+
+  <!-- ═══ SETUP SUMMARY ═══ -->
+  <div class="section">
+    <div class="section-num">06</div>
+    <h2>Setup Summary</h2>
+    <p>Total one-time setup to get both dashboards running.</p>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-content">
+          <h3>Salesforce: Create custom fields + map in Connector <span class="step-time">&bull; ~25 min</span></h3>
+          <p>10 custom fields on the Case object (Status, Priority, Assignee, Last Updated, Issue Key, Summary, Created Date, Target End Date, Ticket Age formula, Deal Value). Map each one in the Connector binding.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-content">
+          <h3>Jira: Create custom field + save JQL filters <span class="step-time">&bull; ~15 min</span></h3>
+          <p>One custom field (SF Opportunity Amount) mapped from Salesforce Deal Value. Five saved JQL filters for the dashboard gadgets.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-content">
+          <h3>Enable bidirectional sync <span class="step-time">&bull; ~5 min</span></h3>
+          <p>Turn on Auto Push and Auto Pull in the Connector connection settings. Enable for all new associations. Every field change syncs automatically in both directions.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">4</div>
+        <div class="step-content">
+          <h3>Build both dashboards <span class="step-time">&bull; ~25 min</span></h3>
+          <p>Salesforce: 4 KPI metrics, donut chart, bar chart, 2 tables. Jira: pie chart, 2D stats matrix, 3 filter results tables, created vs. resolved trend.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="callout">
+      <p><strong>Total setup time: ~70 minutes.</strong> Once configured, both dashboards update automatically. No recurring maintenance, no manual data entry, no sync scripts to run.</p>
+    </div>
+  </div>
+
+  <div class="footer">
+    Connector for Salesforce &amp; Jira &nbsp;&bull;&nbsp; Data Center &amp; Cloud &nbsp;&bull;&nbsp; Appfire<br>
+    Confidential &mdash; Prepared for internal sales use
+  </div>
+
+</div>
+
+</body>
+</html>
